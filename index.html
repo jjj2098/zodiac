@@ -1,0 +1,525 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>나의 별자리</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<style>
+/* Layout: 밤하늘(별 지도)이 위, 그 아래 현재 별의 정거장 패널. 단일 밤하늘 테마. */
+:root{
+  --night:#0c1229; --night2:#141c3d; --panel:#18214a; --line:#2b3768;
+  --ink:#ece9f7; --muted:#a1a8cc; --gold:#f2cf78; --gold-dim:#8a7440; --teal:#7fc8c1; --rose:#e9a0a8;
+  --paper:#ffffff; --paper-ink:#1b2140; --paper-line:#d9dcea; --paper-gold:#9a7418; --paper-muted:#6b7090;
+  --display:"Gowun Batang","Nanum Myeongjo",serif;
+  --body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--night);color:var(--ink)}
+body{font-family:var(--body);font-size:15px;line-height:1.65;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:980px;margin:0 auto;display:grid;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(28px,6vw,44px);margin:0;letter-spacing:-.01em;line-height:1.15}
+h1 em{font-style:normal;color:var(--gold)}
+.sub{color:var(--muted);margin:4px 0 0;font-size:14px}
+.who{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.who label{font-size:12px;color:var(--muted);letter-spacing:.06em}
+input[type=text],textarea{font:inherit;color:var(--ink);background:var(--night2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%}
+input[type=text]:focus,textarea:focus{outline:2px solid var(--gold-dim);border-color:var(--gold-dim)}
+textarea{resize:vertical;min-height:64px}
+#sno{width:92px}#sname{width:120px}
+/* PDF 보고서(화면 밖에서 렌더) */
+.rpt{position:fixed;left:-12000px;top:0;width:794px;background:var(--paper);color:var(--paper-ink);font-family:var(--body);font-size:13px;line-height:1.65;padding:0 48px}
+.rpt .rb{padding-block:10px}
+.rpt .rtop{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--paper-ink);padding-top:44px;padding-bottom:10px}
+.rpt h1{font-family:var(--display);font-size:26px;margin:0;color:var(--paper-ink)}
+.rpt h1 span{color:var(--paper-gold)}
+.rpt .meta{font-size:12.5px;text-align:right;line-height:1.7}
+.rpt .meta b{font-weight:600}
+.rpt img{display:block;width:100%;border-radius:8px}
+.rpt .rsum{font-family:var(--display);font-size:15.5px;line-height:1.85;border-left:3px solid var(--paper-gold);padding-left:14px;margin:0}
+.rpt .rsum b{color:var(--paper-gold)}
+.rpt h3{font-family:var(--display);font-size:16px;margin:0 0 6px;color:var(--paper-ink)}
+.rpt .rrow{display:grid;grid-template-columns:118px 1fr;gap:14px;border-top:1px solid var(--paper-line);padding-block:10px}
+.rpt .rrow .nm{font-family:var(--display);font-weight:700}
+.rpt .rrow .nm small{display:block;font-family:var(--body);font-weight:600;color:var(--paper-gold);font-size:13px}
+.rpt .rrow p{margin:0}
+.rpt .rbox{border:1px solid var(--paper-line);border-radius:8px;padding:12px 14px;white-space:pre-wrap}
+.rpt .rfoot{font-size:11px;color:var(--paper-muted);border-top:1px solid var(--paper-line);padding-top:8px;padding-bottom:36px}
+
+/* 하늘 */
+.sky{position:relative;border-radius:16px;overflow:hidden;background:radial-gradient(ellipse at 70% 10%,#22306a 0%,var(--night2) 45%,var(--night) 100%);border:1px solid var(--line)}
+.sky canvas{position:absolute;inset:0;width:100%;height:100%}
+.sky svg{position:relative;display:block;width:100%;height:auto}
+.star{cursor:pointer}
+.star:focus{outline:none}
+.star:focus-visible .halo{stroke:var(--gold);stroke-width:2}
+.star .core{fill:#5a6496;transition:fill .5s}
+.star.lit .core{fill:var(--gold)}
+.star .halo{fill:none;stroke:transparent}
+.star.cur .halo{stroke:var(--teal);stroke-width:1.5;stroke-dasharray:3 4;animation:spin 14s linear infinite;transform-box:fill-box;transform-origin:center}
+.star .glow{fill:var(--gold);opacity:0;transition:opacity .6s}
+.star.lit .glow{opacity:.22}
+.star text{font-family:var(--body);font-size:12px;fill:var(--muted)}
+.star.lit text.kw{fill:var(--gold);font-family:var(--display);font-size:14px;font-weight:700}
+.link{stroke:var(--gold);stroke-width:1.3;opacity:.55;stroke-dasharray:400;stroke-dashoffset:400;animation:draw 1.4s ease forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.progress{position:absolute;left:14px;bottom:10px;font-size:12px;color:var(--muted);letter-spacing:.05em}
+.progress b{color:var(--gold);font-weight:600}
+
+/* 정거장 패널 */
+.station{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px clamp(16px,3vw,30px) 26px;display:grid;gap:18px}
+.st-head{display:flex;gap:14px;align-items:flex-start}
+.st-no{font-family:var(--display);font-size:13px;color:var(--night);background:var(--gold);border-radius:999px;min-width:30px;height:30px;display:grid;place-items:center;font-weight:700;margin-top:4px}
+.st-head h2{font-family:var(--display);font-size:clamp(22px,4vw,28px);margin:0;line-height:1.3;text-wrap:balance}
+.st-head p{margin:4px 0 0;color:var(--muted);max-width:62ch}
+.q{display:grid;gap:8px}
+.q>.lab{font-weight:600;font-size:15px}
+.q>.hint{font-size:13px;color:var(--muted);margin-top:-4px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{font:inherit;font-size:14px;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:999px;padding:6px 13px;cursor:pointer;transition:background .15s,border-color .15s}
+.chip:hover{border-color:var(--muted)}
+.chip.on{background:var(--gold);border-color:var(--gold);color:var(--night);font-weight:600}
+.chip.on2{background:var(--teal);border-color:var(--teal);color:var(--night);font-weight:600}
+.chip.half{border-color:var(--teal);color:var(--teal)}
+.chip:focus-visible,.btn:focus-visible,.card:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.btn{font:inherit;font-weight:600;font-size:14px;border-radius:10px;padding:10px 18px;cursor:pointer;border:1px solid var(--gold);background:var(--gold);color:var(--night)}
+.btn.ghost{background:transparent;color:var(--gold)}
+.btn.small{padding:6px 12px;font-size:13px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.row.end{justify-content:space-between}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.box{border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--night2);display:grid;gap:8px;min-width:0}
+.box h4{margin:0;font-size:13px;letter-spacing:.06em;color:var(--teal);font-weight:600}
+.box .big{font-family:var(--display);font-size:18px}
+.note{font-size:13px;color:var(--muted)}
+.keyline{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-top:1px dashed var(--line);padding-top:16px}
+.keyline .lab{font-size:13px;color:var(--muted)}
+.keyline input{max-width:260px}
+.kwchip{font-family:var(--display);font-weight:700;color:var(--gold);font-size:18px}
+
+/* 토너먼트 */
+.vs{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:stretch}
+.vs .mid{align-self:center;font-family:var(--display);color:var(--muted)}
+.card{font:inherit;text-align:left;color:var(--ink);background:var(--night2);border:1px solid var(--line);border-radius:14px;padding:18px;cursor:pointer;display:grid;gap:6px;transition:transform .15s,border-color .15s}
+.card:hover{border-color:var(--gold);transform:translateY(-2px)}
+.card b{font-family:var(--display);font-size:22px;color:var(--gold)}
+.card span{font-size:13px;color:var(--muted)}
+.bar{height:6px;border-radius:9px;background:var(--night2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--teal);border-radius:9px;transition:width .4s}
+
+/* 조하리 */
+.johari{display:grid;grid-template-columns:1fr 1fr;gap:2px;border-radius:12px;overflow:hidden;background:var(--line)}
+.johari>div{background:var(--night2);padding:12px;display:grid;gap:6px;align-content:start;min-height:110px}
+.johari h4{margin:0;font-size:13px;color:var(--teal)}
+.johari .sm{font-size:12px;color:var(--muted)}
+.johari .ws{font-family:var(--display);font-size:15px}
+
+/* 시나리오 */
+.scn{border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:10px;background:var(--night2)}
+.scn p{margin:0}
+.opts{display:grid;gap:6px}
+.opt{font:inherit;text-align:left;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:9px;padding:8px 12px;cursor:pointer;font-size:14px}
+.opt.on{border-color:var(--gold);background:rgba(242,207,120,.12)}
+
+/* 그림자 카드 */
+.flips{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.flip{perspective:700px;height:96px;cursor:pointer;border:none;background:none;padding:0;font:inherit;color:inherit}
+.flip .in{position:relative;width:100%;height:100%;transition:transform .6s;transform-style:preserve-3d}
+.flip.on .in{transform:rotateY(180deg)}
+.flip .fa,.flip .ba{position:absolute;inset:0;border-radius:12px;display:grid;place-items:center;text-align:center;padding:8px;backface-visibility:hidden;border:1px solid var(--line)}
+.flip .fa{background:var(--night2);font-family:var(--display);font-size:17px;color:var(--rose)}
+.flip .ba{background:#1f2a5a;transform:rotateY(180deg);border-color:var(--gold-dim);display:grid;gap:2px;align-content:center}
+.flip .ba b{font-family:var(--display);color:var(--gold);font-size:17px}
+.flip .ba small{font-size:11.5px;color:var(--muted);line-height:1.4}
+
+/* 결과 */
+.final{display:grid;gap:18px}
+.summary{font-family:var(--display);font-size:clamp(17px,2.6vw,21px);line-height:1.8;border-left:3px solid var(--gold);padding:4px 0 4px 16px;margin:0;max-width:62ch}
+.summary b{color:var(--gold)}
+.copybox{white-space:pre-wrap;background:var(--night2);border:1px solid var(--line);border-radius:10px;padding:14px;font-size:14px;line-height:1.75;min-width:0;overflow-wrap:anywhere}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--gold);color:var(--night);padding:9px 16px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:20}
+.toast.show{opacity:1}
+details.guide{border:1px solid var(--line);border-radius:12px;padding:12px 16px;background:var(--night2)}
+details.guide summary{cursor:pointer;font-weight:600;color:var(--teal)}
+details.guide table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:10px}
+details.guide td{border-top:1px solid var(--line);padding:7px 6px;vertical-align:top}
+details.guide td:first-child{white-space:nowrap;color:var(--gold);font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto}
+@media (max-width:560px){
+  .vs{grid-template-columns:1fr}.vs .mid{justify-self:center}
+  .star text{font-size:15px}.star.lit text.kw{font-size:17px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.link{stroke-dashoffset:0}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>나는 누구인가? <em>나의 별자리</em></h1>
+      <p class="sub">일곱 개의 별을 하나씩 밝히면, 그 별들이 이어져 나만의 별자리가 됩니다.</p>
+    </div>
+    <div class="who">
+      <label for="sno">학번</label>
+      <input type="text" id="sno" inputmode="numeric" maxlength="6" placeholder="10315" autocomplete="off">
+      <label for="sname">이름</label>
+      <input type="text" id="sname" maxlength="10" placeholder="김하늘" autocomplete="off">
+    </div>
+  </header>
+
+  <div class="sky" id="sky">
+    <canvas id="bgstars" aria-hidden="true"></canvas>
+    <svg id="skysvg" viewBox="0 0 640 300" role="img" aria-label="일곱 별 지도"></svg>
+    <div class="progress" id="prog"></div>
+  </div>
+
+  <section class="station" id="station" aria-live="polite"></section>
+
+  <details class="guide">
+    <summary>교사용 운영 안내 (50분)</summary>
+    <div class="tablewrap"><table>
+      <tr><td>0–5분</td><td>도입. "나는 누구인가?"에 한 문장으로 답해 보기. 지금은 어렵다는 것을 확인하고 일곱 별 여행을 시작합니다.</td></tr>
+      <tr><td>5–15분</td><td>① 기억의 별 · ② 거울의 별. 거울의 별은 짝과 서로 단어를 골라 주게 하면 좋습니다.</td></tr>
+      <tr><td>15–25분</td><td>③ 가치의 별(토너먼트) · ④ 몰입의 별. 토너먼트 결승 두 단어를 짝에게 소개합니다.</td></tr>
+      <tr><td>25–35분</td><td>⑤ 강점의 별 · ⑥ 그림자의 별. 약점 카드의 뒷면을 소리 내어 읽게 하면 분위기가 부드러워집니다.</td></tr>
+      <tr><td>35–45분</td><td>⑦ 미래의 별 → 별자리 완성. 별자리 이름을 짓고 요약 문장을 확인합니다.</td></tr>
+      <tr><td>45–50분</td><td>2~3명 발표. 처음의 한 문장과 지금의 한 문장을 비교합니다.</td></tr>
+    </table></div>
+    <p class="note">입력 내용은 이 기기의 브라우저에만 저장됩니다. 공용 PC에서는 마지막에 '처음부터 다시'를 눌러 지워 주세요.</p>
+  </details>
+</div>
+<div class="toast" id="toast"></div>
+<div class="rpt" id="rpt" aria-hidden="true"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+/* ---------- 데이터 ---------- */
+const STARS=[
+ {n:'기억의 별',x:70,y:200,d:'지나온 시간 속에서 내가 가장 나다웠던 순간을 찾습니다.'},
+ {n:'거울의 별',x:160,y:110,d:'내가 보는 나와 다른 사람이 보는 나를 겹쳐 봅니다.'},
+ {n:'가치의 별',x:265,y:165,d:'끝까지 놓고 싶지 않은 단 하나의 가치를 고릅니다.'},
+ {n:'몰입의 별',x:350,y:70,d:'시간 가는 줄 모르는 순간에서 흥미의 방향을 읽습니다.'},
+ {n:'강점의 별',x:440,y:150,d:'여러 상황에서 내가 자연스럽게 꺼내 쓰는 힘을 찾습니다.'},
+ {n:'그림자의 별',x:520,y:230,d:'약점이라 여긴 것을 뒤집어 숨은 힘을 발견합니다.'},
+ {n:'미래의 별',x:580,y:95,d:'되고 싶은 나를 명사가 아닌 동사로 그려 봅니다.'}
+];
+const FEELINGS=['뿌듯함','설렘','편안함','짜릿함','고마움','단단함','자유로움','따뜻함'];
+const ADJ=['꼼꼼한','다정한','유쾌한','차분한','호기심 많은','책임감 있는','솔직한','배려 깊은','도전적인','성실한','상상력 풍부한','논리적인','듬직한','눈치 빠른','끈기 있는','공정한','침착한','열정적인','유연한','독립적인','겸손한','리더십 있는','감수성 깊은','현실적인'];
+const VALUES=[['성장','어제보다 나아지는 것'],['자유','스스로 선택하는 삶'],['안정','흔들리지 않는 기반'],['인정','노력을 알아봐 주는 것'],['사랑','소중한 사람과의 관계'],['정의','옳은 것을 지키는 일'],['창조','없던 것을 만드는 기쁨'],['봉사','누군가에게 도움이 되는 것'],['도전','해 본 적 없는 일에 뛰어드는 것'],['건강','몸과 마음의 균형'],['지식','세상을 깊이 이해하는 것'],['우정','함께 웃는 친구'],['여유','쉼이 있는 하루'],['영향력','더 많은 사람을 움직이는 힘'],['정직','말과 행동이 같은 것'],['아름다움','감동을 주는 것들']];
+// R I A S E C
+const RIA={R:['현실형','몸과 도구로 직접 만들고 고치는'],I:['탐구형','왜 그런지 끝까지 파고드는'],A:['예술형','나만의 방식으로 표현하는'],S:['사회형','사람을 돕고 가르치는'],E:['진취형','이끌고 설득하고 일을 벌이는'],C:['관습형','정리하고 계획대로 해내는']};
+const ACTS=[['자전거·기계 고치기','R'],['운동하며 몸 쓰기','R'],['요리나 만들기','R'],['과학 다큐 보기','I'],['어려운 수학 문제 붙잡기','I'],['궁금한 걸 끝까지 검색하기','I'],['그림·영상 만들기','A'],['노래·악기 연주','A'],['글이나 이야기 쓰기','A'],['친구 고민 들어주기','S'],['동생·후배 가르치기','S'],['봉사활동','S'],['모둠에서 역할 나누기','E'],['발표·토론','E'],['물건 팔기·행사 기획','E'],['필기·자료 정리','C'],['계획표 세우기','C'],['돈·숫자 관리하기','C']];
+const STR={L:'리더십',E:'공감',A:'분석',C:'창의',P:'끈기',M:'조율',X:'실행',V:'표현'};
+const SCN=[
+ ['모둠 과제 첫 회의, 아무도 말을 꺼내지 않는다. 나는?',[['"일단 역할부터 나누자"고 말한다','L'],['주제에 대한 자료를 먼저 찾아본다','A'],['엉뚱하지만 재밌는 아이디어를 던진다','C'],['조용한 친구에게 의견을 물어본다','E']]],
+ ['친구 둘이 말다툼을 하고 있다. 나는?',[['양쪽 이야기를 듣고 중간 지점을 찾는다','M'],['속상한 친구 마음부터 달래 준다','E'],['무엇이 오해였는지 차근차근 짚는다','A'],['분위기를 바꿀 농담을 한다','V']]],
+ ['계획한 공부가 일주일째 밀려 있다. 나는?',[['오늘 당장 한 과목부터 시작한다','X'],['힘들어도 매일 조금씩 끝까지 한다','P'],['방식을 바꿔 새로운 공부법을 만든다','C'],['밀린 이유를 분석해 계획을 다시 짠다','A']]],
+ ['학급 행사 준비를 맡게 되었다. 내가 가장 하고 싶은 일은?',[['전체 진행을 맡아 이끈다','L'],['포스터와 무대를 꾸민다','V'],['준비물·예산·일정을 챙긴다','X'],['반 친구들 의견을 모은다','M']]],
+ ['아무리 해도 안 풀리는 문제를 만났다. 나는?',[['될 때까지 붙잡고 있는다','P'],['전혀 다른 방법으로 접근해 본다','C'],['잘하는 친구에게 묻고 같이 푼다','M'],['개념부터 다시 정리한다','A']]],
+ ['전학 온 친구가 혼자 앉아 있다. 나는?',[['먼저 다가가 말을 건다','X'],['그 친구가 편하도록 자연스럽게 무리에 끼운다','L'],['그 친구가 어떤 기분일지 생각해 본다','E'],['재밌는 이야기로 웃게 만든다','V']]]
+];
+const SHADOW=[['고집이 세다','신념','쉽게 흔들리지 않는 중심'],['소심하다','신중함','실수를 줄이는 조심성'],['말이 많다','표현력','생각을 나누는 힘'],['느리다','깊이','대충 넘기지 않는 태도'],['예민하다','섬세함','남들이 놓친 걸 알아채는 감각'],['산만하다','호기심','여러 곳에 열린 눈'],['걱정이 많다','대비력','위험을 먼저 보는 눈'],['남 눈치를 본다','공감력','상대의 마음을 읽는 감각'],['완벽주의다','장인정신','끝까지 다듬는 기준'],['욱한다','열정','불의를 그냥 넘기지 않는 뜨거움'],['우유부단하다','신중한 판단','여러 입장을 고려하는 마음'],['혼자가 편하다','독립성','스스로 생각하고 해내는 힘']];
+const VERBS=['돕는','만드는','가르치는','지키는','연결하는','발견하는','치유하는','표현하는','이끄는','바꾸는','기록하는','응원하는'];
+
+/* ---------- 상태 ---------- */
+const KEY='my-constellation-v1';
+function fresh(){return{sno:'',sname:'',cur:0,cname:'',
+ s1:{m:[{t:'',f:''},{t:'',f:''},{t:'',f:''}],key:''},
+ s2:{me:[],ot:[],key:''},
+ s3:{pool:shuffle(VALUES.map(v=>v[0])),win:[],i:0,done:false,winner:'',runner:'',round:16},
+ s4:{r:{}},
+ s5:{a:[]},
+ s6:{flip:[],pick:'',use:''},
+ s7:{verb:'',obj:'',day:'',letter:''}}}
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+let S;try{S=JSON.parse(localStorage.getItem(KEY))||fresh()}catch(e){S=fresh()}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- 계산 ---------- */
+function riasec(){const sc={R:0,I:0,A:0,S:0,E:0,C:0};ACTS.forEach((a,i)=>{sc[a[1]]+=(S.s4.r[i]||0)});return sc}
+function topRia(){const sc=riasec();return Object.keys(sc).sort((a,b)=>sc[b]-sc[a]).filter(k=>sc[k]>0)}
+function strengths(){const sc={};Object.keys(STR).forEach(k=>sc[k]=0);S.s5.a.forEach((o,i)=>{if(o!=null&&SCN[i])sc[SCN[i][1][o][1]]++});return Object.keys(sc).sort((a,b)=>sc[b]-sc[a]).filter(k=>sc[k]>0)}
+function johari(){const me=S.s2.me,ot=S.s2.ot;return{open:me.filter(w=>ot.includes(w)),hidden:me.filter(w=>!ot.includes(w)),blind:ot.filter(w=>!me.includes(w)),unk:ADJ.filter(w=>!me.includes(w)&&!ot.includes(w))}}
+function kw(i){
+ switch(i){
+  case 0:return S.s1.key.trim();
+  case 1:{const j=johari();return S.s2.key||(j.open[0]||'')}
+  case 2:return S.s3.done?S.s3.winner:'';
+  case 3:{const t=topRia();const n=Object.keys(S.s4.r).filter(k=>S.s4.r[k]).length;return n>=3&&t[0]?RIA[t[0]][0]:''}
+  case 4:{const done=S.s5.a.filter(x=>x!=null).length===SCN.length;const t=strengths();return done&&t[0]?STR[t[0]]:''}
+  case 5:{const p=SHADOW.find(s=>s[0]===S.s6.pick);return p?p[1]:''}
+  case 6:return S.s7.verb?(S.s7.verb+' 사람'):'';
+ }}
+const lit=i=>!!kw(i);
+const litCount=()=>STARS.filter((_,i)=>lit(i)).length;
+
+/* ---------- 배경 별 ---------- */
+function drawBg(){const c=document.getElementById('bgstars'),r=c.getBoundingClientRect(),d=window.devicePixelRatio||1;c.width=r.width*d;c.height=r.height*d;const x=c.getContext('2d');x.scale(d,d);let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;for(let i=0;i<220;i++){const a=rnd()*.7+.1,s=rnd()*1.3+.2;x.fillStyle=`rgba(220,225,255,${a})`;x.beginPath();x.arc(rnd()*r.width,rnd()*r.height,s,0,7);x.fill()}}
+
+/* ---------- 하늘 ---------- */
+function renderSky(){
+ const svg=document.getElementById('skysvg');let h='';
+ // 연결선: 밝힌 별끼리 순서대로
+ const L=STARS.map((s,i)=>lit(i)?i:-1).filter(i=>i>=0);
+ for(let k=1;k<L.length;k++){const a=STARS[L[k-1]],b=STARS[L[k]];h+=`<line class="link" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`}
+ STARS.forEach((s,i)=>{const on=lit(i),cur=S.cur===i;const k=kw(i);
+  h+=`<g class="star${on?' lit':''}${cur?' cur':''}" data-go="${i}" tabindex="0" role="button" aria-label="${s.n}${on?' 밝힘: '+esc(k):''}">
+   <circle class="glow" cx="${s.x}" cy="${s.y}" r="20"/>
+   <circle class="halo" cx="${s.x}" cy="${s.y}" r="15"/>
+   <path class="core" d="${starPath(s.x,s.y,on?8:5.5)}"/>
+   <text x="${s.x}" y="${s.y+(s.y>200?-24:30)}" text-anchor="middle">${s.n}</text>
+   ${on?`<text class="kw" x="${s.x}" y="${s.y+(s.y>200?-40:47)}" text-anchor="middle">${esc(k.length>8?k.slice(0,8)+'…':k)}</text>`:''}
+  </g>`});
+ svg.innerHTML=h;
+ const n=litCount();document.getElementById('prog').innerHTML=`밝힌 별 <b>${n}</b> / 7`+(n===7?' · 별자리를 완성할 수 있어요':'');
+}
+function starPath(cx,cy,R){const r=R*.42;let p='';for(let i=0;i<10;i++){const a=Math.PI/5*i-Math.PI/2,rr=i%2?r:R;p+=(i?'L':'M')+(cx+Math.cos(a)*rr).toFixed(1)+' '+(cy+Math.sin(a)*rr).toFixed(1)}return p+'Z'}
+
+/* ---------- 정거장 ---------- */
+function head(i){return`<div class="st-head"><div class="st-no">${i+1}</div><div><h2>${STARS[i].n}</h2><p>${STARS[i].d}</p></div></div>`}
+function nav(i){const k=kw(i);return`<div class="row end">
+ <button class="btn ghost small" data-go="${Math.max(0,i-1)}" ${i===0?'disabled':''}>← 이전 별</button>
+ ${i<6?`<button class="btn" data-go="${i+1}">${k?'다음 별로':'일단 건너뛰기'} →</button>`:`<button class="btn" data-go="7" ${litCount()<7?'':''}>별자리 완성하기 ✦</button>`}
+</div>`}
+function keyLine(i,extra){const k=kw(i);return`<div class="keyline"><span class="lab">이 별의 이름</span>${k?`<span class="kwchip">${esc(k)}</span>`:'<span class="note">활동을 마치면 별이 켜집니다</span>'}${extra||''}</div>`}
+
+const R=[
+ // 1 기억
+ ()=>{const Q=['내가 가장 빛났던 순간','힘들었지만 끝까지 버텨 낸 순간','누군가에게 진심으로 고마웠던 순간'];
+  return head(0)+`<div class="grid3">${Q.map((q,i)=>`<div class="box"><h4>${q}</h4>
+   <textarea data-in="s1.m.${i}.t" placeholder="언제, 어디서, 무엇을?">${esc(S.s1.m[i].t)}</textarea>
+   <div class="chips">${FEELINGS.map(f=>`<button class="chip${S.s1.m[i].f===f?' on':''}" data-f="${i}|${f}">${f}</button>`).join('')}</div></div>`).join('')}</div>
+   <div class="q"><div class="lab">세 순간을 나란히 놓고 보면, 공통으로 흐르는 것은 무엇인가요?</div>
+   <div class="hint">한두 단어로 적어 보세요. 예: 함께, 끝까지, 새로운 것, 누군가를 위해</div>
+   <input type="text" id="k1" data-in="s1.key" maxlength="14" value="${esc(S.s1.key)}" placeholder="공통점 한 단어"></div>`+keyLine(0)+nav(0)},
+ // 2 거울
+ ()=>{const j=johari();
+  return head(1)+`<div class="q"><div class="lab">① 내가 생각하는 나 <span class="note">(${S.s2.me.length}/6)</span></div>
+   <div class="chips">${ADJ.map(w=>`<button class="chip${S.s2.me.includes(w)?' on':''}" data-me="${w}">${w}</button>`).join('')}</div></div>
+   <div class="q"><div class="lab">② 친구·가족이 나에게 자주 하는 말 <span class="note">(${S.s2.ot.length}/6)</span></div>
+   <div class="hint">짝에게 골라 달라고 해도 좋아요.</div>
+   <div class="chips">${ADJ.map(w=>`<button class="chip${S.s2.ot.includes(w)?' on2':''}" data-ot="${w}">${w}</button>`).join('')}</div></div>
+   ${(S.s2.me.length&&S.s2.ot.length)?`<div class="johari">
+    <div><h4>열린 나</h4><span class="sm">나도 알고 남도 아는</span><span class="ws">${j.open.join(', ')||'—'}</span></div>
+    <div><h4>보이지 않는 나</h4><span class="sm">남은 보는데 나는 몰랐던</span><span class="ws">${j.blind.join(', ')||'—'}</span></div>
+    <div><h4>숨겨진 나</h4><span class="sm">나만 알고 있는</span><span class="ws">${j.hidden.join(', ')||'—'}</span></div>
+    <div><h4>아직 모르는 나</h4><span class="sm">앞으로 발견할</span><span class="ws">${j.unk.length}개의 가능성</span></div></div>
+    <p class="note">'보이지 않는 나'는 다른 사람이 먼저 알아본 나의 모습입니다. 의외의 단어가 있다면 그 이유를 물어보세요.</p>
+    <div class="q"><div class="lab">이 별에 붙일 단어 하나를 고르세요</div><div class="chips">${[...j.open,...j.blind,...j.hidden].map(w=>`<button class="chip${kw(1)===w?' on':''}" data-k2="${w}">${w}</button>`).join('')}</div></div>`:''}`
+   +keyLine(1)+nav(1)},
+ // 3 가치
+ ()=>{const t=S.s3;
+  if(t.done)return head(2)+`<div class="grid2"><div class="box"><h4>최후의 가치</h4><div class="big" style="font-size:30px;color:var(--gold)">${esc(t.winner)}</div><span class="note">${VALUES.find(v=>v[0]===t.winner)[1]}</span></div>
+   <div class="box"><h4>끝까지 고민한 가치</h4><div class="big">${esc(t.runner)}</div><span class="note">${VALUES.find(v=>v[0]===t.runner)[1]}</span></div></div>
+   <div class="q"><div class="lab">마지막 두 개 중 왜 '${esc(t.winner)}'을(를) 골랐나요?</div><textarea data-in="s3.why" placeholder="그 가치가 나에게 중요한 이유">${esc(t.why||'')}</textarea></div>
+   <div class="row"><button class="btn ghost small" data-act="retour">토너먼트 다시 하기</button></div>`+keyLine(2)+nav(2);
+  const a=t.pool[t.i],b=t.pool[t.i+1];const total=15,doneM=countMatches();
+  const rn={16:'16강',8:'8강',4:'준결승',2:'결승'}[t.pool.length];
+  return head(2)+`<div class="row end"><span class="note">${rn} · ${t.i/2+1}번째 대결</span><span class="note">${doneM} / ${total}</span></div>
+   <div class="bar"><i style="width:${doneM/total*100}%"></i></div>
+   <div class="vs"><button class="card" data-pick="${a}"><b>${a}</b><span>${VALUES.find(v=>v[0]===a)[1]}</span></button><div class="mid">vs</div>
+   <button class="card" data-pick="${b}"><b>${b}</b><span>${VALUES.find(v=>v[0]===b)[1]}</span></button></div>
+   <p class="note">둘 다 소중해도 하나만 남길 수 있습니다. 더 오래 지키고 싶은 쪽을 고르세요.</p>`+keyLine(2)+nav(2)},
+ // 4 몰입
+ ()=>{const sc=riasec(),t=topRia();const mx=Math.max(1,...Object.values(sc));
+  return head(3)+`<div class="q"><div class="lab">시간 가는 줄 모르고 하는 일을 눌러 주세요</div><div class="hint">한 번: 좋아함 · 두 번: 완전 빠져듦 · 세 번: 취소</div>
+   <div class="chips">${ACTS.map((a,i)=>{const v=S.s4.r[i]||0;return`<button class="chip${v===2?' on':v===1?' half':''}" data-act4="${i}">${a[0]}${v===2?' ★':''}</button>`}).join('')}</div></div>
+   <div class="grid2"><div class="box" style="place-items:center">${hex(sc,mx)}</div>
+   <div class="box"><h4>나의 흥미 방향</h4>${t[0]?`<div class="big" style="color:var(--gold)">${RIA[t[0]][0]}${t[1]?' + '+RIA[t[1]][0]:''}</div>
+    <p class="note" style="margin:0">${RIA[t[0]][1]} 일에 마음이 끌리는 편입니다.${t[1]?` 그리고 ${RIA[t[1]][1]} 일에도 관심이 있습니다.`:''}</p>
+    <p class="note" style="margin:0">흥미는 바뀔 수 있습니다. 정답이 아니라 지금의 방향입니다.</p>`:'<p class="note">세 개 이상 고르면 육각형이 그려집니다.</p>'}</div></div>`+keyLine(3)+nav(3)},
+ // 5 강점
+ ()=>{const t=strengths();const n=S.s5.a.filter(x=>x!=null).length;
+  return head(4)+`<div class="row end"><span class="note">상황 ${n} / ${SCN.length}</span></div><div class="bar"><i style="width:${n/SCN.length*100}%"></i></div>
+   ${SCN.map((s,i)=>`<div class="scn"><p><b>${i+1}.</b> ${s[0]}</p><div class="opts">${s[1].map((o,j)=>`<button class="opt${S.s5.a[i]===j?' on':''}" data-a5="${i}|${j}">${o[0]}</button>`).join('')}</div></div>`).join('')}
+   ${n===SCN.length?`<div class="box"><h4>내가 자연스럽게 꺼내 쓰는 힘</h4><div class="big" style="color:var(--gold)">${t.slice(0,2).map(k=>STR[k]).join(' · ')}</div><p class="note" style="margin:0">고민하지 않고 고른 답일수록 나의 기본값에 가깝습니다.</p></div>`:''}`+keyLine(4)+nav(4)},
+ // 6 그림자
+ ()=>{return head(5)+`<div class="q"><div class="lab">내가 약점이라고 생각하는 카드를 뒤집어 보세요</div><div class="hint">카드를 누르면 뒷면이 보입니다.</div>
+   <div class="flips">${SHADOW.map((s,i)=>`<button class="flip${S.s6.flip.includes(i)?' on':''}" data-flip="${i}" aria-label="${s[0]}"><div class="in"><div class="fa">${s[0]}</div><div class="ba"><b>${s[1]}</b><small>${s[2]}</small></div></div></button>`).join('')}</div></div>
+   ${S.s6.flip.length?`<div class="q"><div class="lab">뒤집은 카드 중 가장 나다운 힘 하나</div><div class="chips">${S.s6.flip.map(i=>SHADOW[i]).map(s=>`<button class="chip${S.s6.pick===s[0]?' on':''}" data-pick6="${s[0]}">${s[0]} → ${s[1]}</button>`).join('')}</div></div>`:''}
+   ${S.s6.pick?`<div class="q"><div class="lab">이 힘을 앞으로 어디에 써 보고 싶나요?</div><textarea data-in="s6.use" placeholder="예: 신중함을 살려 실험 설계를 꼼꼼히 하고 싶다">${esc(S.s6.use)}</textarea></div>`:''}`+keyLine(5)+nav(5)},
+ // 7 미래
+ ()=>{return head(6)+`<div class="q"><div class="lab">직업 이름 대신, 동사로 되고 싶은 나를 적어 보세요</div>
+   <div class="hint">"의사가 되고 싶다"보다 "아픈 사람을 치유하는 사람"이 더 오래 가는 꿈입니다.</div>
+   <div class="row" style="gap:8px"><input type="text" data-in="s7.obj" style="max-width:240px" maxlength="20" value="${esc(S.s7.obj)}" placeholder="누구를/무엇을 (예: 아픈 사람을)">
+   <span class="note">+</span></div>
+   <div class="chips">${VERBS.map(v=>`<button class="chip${S.s7.verb===v?' on':''}" data-verb="${v}">${v}</button>`).join('')}</div></div>
+   ${S.s7.verb?`<p class="summary">나는 <b>${esc(S.s7.obj)} ${esc(S.s7.verb)}</b> 사람이 되고 싶다.</p>`:''}
+   <div class="grid2"><div class="q"><div class="lab">10년 뒤 어느 평범한 하루</div><textarea data-in="s7.day" placeholder="아침에 일어나서 어디로 가고, 누구를 만나고, 무엇을 하나요?">${esc(S.s7.day)}</textarea></div>
+   <div class="q"><div class="lab">10년 뒤의 나에게 한 줄</div><textarea data-in="s7.letter" placeholder="지금의 내가 미래의 나에게">${esc(S.s7.letter)}</textarea></div></div>`+keyLine(6)+nav(6)},
+ // 완성
+ ()=>finalView()
+];
+function countMatches(){const t=S.s3;const done={16:0,8:8,4:12,2:14}[t.pool.length]||0;return done+t.i/2}
+function hex(sc,mx){const K=['R','I','A','S','E','C'],cx=110,cy=105,r=78;const pt=(k,v)=>{const a=-Math.PI/2+K.indexOf(k)*Math.PI/3;return[cx+Math.cos(a)*r*v,cy+Math.sin(a)*r*v]};
+ let g='';[1,.66,.33].forEach(v=>{g+=`<polygon points="${K.map(k=>pt(k,v).join(',')).join(' ')}" fill="none" stroke="var(--line)"/>`});
+ const p=K.map(k=>pt(k,Math.max(.06,sc[k]/mx)).join(',')).join(' ');
+ const lab=K.map(k=>{const[x,y]=pt(k,1.22);return`<text x="${x}" y="${y+4}" text-anchor="middle" font-size="12" fill="var(--muted)">${RIA[k][0]}</text>`}).join('');
+ return`<svg viewBox="0 0 220 210" width="100%" style="max-width:260px" role="img" aria-label="흥미 육각형">${g}<polygon points="${p}" fill="rgba(127,200,193,.25)" stroke="var(--teal)" stroke-width="2"/>${lab}</svg>`}
+
+function finalView(){
+ const n=litCount();const k=i=>esc(kw(i)||'(빈 별)');
+ const sent=`나는 <b>${k(0)}</b>의 순간에 가장 빛나고, 사람들에게 <b>${k(1)}</b> 사람으로 보이며, 무엇보다 <b>${k(2)}</b>을(를) 소중히 여긴다. <b>${k(3)}</b>의 흥미를 따라 <b>${k(4)}</b>의 힘을 쓰고, 약점이라 여겼던 것 속의 <b>${k(5)}</b>까지 품은 채, <b>${esc(S.s7.obj)} ${esc(S.s7.verb||'(미래의 별)')}</b> 사람이 되고 싶다.`;
+ return`<div class="st-head"><div class="st-no">✦</div><div><h2>${S.cname?esc(S.cname)+' 자리':'나의 별자리'}</h2><p>${n<7?`아직 ${7-n}개의 별이 꺼져 있어요. 위 하늘에서 꺼진 별을 눌러 밝혀 보세요.`:'일곱 별이 모두 이어졌습니다.'}</p></div></div>
+ <div class="q"><div class="lab">별자리에 이름을 지어 주세요</div><input type="text" id="cname" data-in="cname" maxlength="12" style="max-width:280px" value="${esc(S.cname)}" placeholder="예: 끝까지 걷는 등불"></div>
+ <div class="final"><p class="summary" id="sumtxt">${sent}</p>
+ <div class="grid2"><div class="box"><h4>나는 누구인가 — 한 문장 카드</h4><div class="copybox" id="cardtxt">${esc(cardText())}</div><button class="btn small" data-copy="cardtxt">카드 복사</button></div>
+ <div class="box"><h4>진로활동 특기사항 기재 예시</h4><div class="copybox" id="sgbtxt">${esc(sgbText())}</div><button class="btn small" data-copy="sgbtxt">예시 복사</button><span class="note">학생의 실제 활동과 발표를 확인한 뒤 교사가 다듬어 쓰는 초안입니다.</span></div></div>
+ </div>
+ <div class="box"><h4>결과 보고서 PDF</h4>
+  <span class="note">별자리 그림, 일곱 별의 기록, 요약 문장, 기재 예시를 A4 보고서로 저장합니다.${(!S.sno||!S.sname)?' 맨 위에 학번과 이름을 먼저 적어 주세요.':''}</span>
+  <div class="row"><button class="btn" data-act="pdf" id="pdfbtn">PDF로 저장</button><span class="note" id="pdfmsg"></span></div></div>
+ <div class="row end"><button class="btn ghost small" data-go="6">← 미래의 별</button><button class="btn ghost small" data-act="reset">처음부터 다시</button></div>
+ <div id="resetConfirm"></div>`}
+function plain(i){return kw(i)||'-'}
+function cardText(){const t=topRia(),st=strengths();
+ return `[${S.cname||'나의 별자리'}] ${who()}
+① 기억: ${plain(0)}${S.s1.m.map(m=>m.f).filter(Boolean).length?' ('+S.s1.m.map(m=>m.f).filter(Boolean).join('·')+')':''}
+② 거울: ${plain(1)}
+③ 가치: ${plain(2)}${S.s3.runner?' / '+S.s3.runner:''}
+④ 몰입: ${t.slice(0,2).map(k=>RIA[k][0]).join('+')||'-'}
+⑤ 강점: ${st.slice(0,2).map(k=>STR[k]).join('·')||'-'}
+⑥ 그림자: ${S.s6.pick?S.s6.pick+' → '+plain(5):'-'}
+⑦ 미래: ${S.s7.verb?(S.s7.obj+' '+S.s7.verb+' 사람').trim():'-'}
+${S.s7.letter?'미래의 나에게: '+S.s7.letter:''}`.trim()}
+function sgbText(){const t=topRia(),st=strengths();const j=johari();
+ const p=[];
+ p.push(`'나는 누구인가'를 주제로 한 자기이해 프로그램(나의 별자리)에 참여하여 기억·관계·가치·흥미·강점·약점·미래의 일곱 관점에서 자신을 탐색함.`);
+ if(S.s1.key)p.push(`인생의 의미 있는 순간을 되돌아보며 '${S.s1.key}'(이)라는 공통된 흐름을 발견함.`);
+ if(j.blind.length)p.push(`타인이 보는 자신의 모습을 비교하는 활동에서 스스로 인식하지 못했던 '${j.blind[0]}' 면모를 새롭게 알게 됨.`);
+ if(S.s3.done)p.push(`가치 선택 활동에서 '${S.s3.winner}'을(를) 가장 중요한 가치로 꼽고${S.s3.why?' 그 이유를 '+S.s3.why.replace(/[.。]$/,'')+'(이)라고 설명함':' 그 이유를 구체적으로 설명함'}.`);
+ if(t[0])p.push(`몰입 경험을 분석하여 자신의 흥미가 ${RIA[t[0]][0]}${t[1]?'과 '+RIA[t[1]][0]:''}에 가깝다는 것을 파악함.`);
+ if(st[0])p.push(`상황별 선택을 통해 ${st.slice(0,2).map(k=>STR[k]).join('과 ')}을(를) 자신의 강점으로 확인함.`);
+ if(S.s6.pick)p.push(`'${S.s6.pick}'는 약점을 '${plain(5)}'(으)로 재해석하며 자신을 긍정적으로 바라보는 태도를 보임.`);
+ if(S.s7.verb)p.push(`직업명이 아닌 '${(S.s7.obj+' '+S.s7.verb).trim()} 사람'이라는 동사형 비전을 세움.`);
+ return p.join(' ')}
+
+/* ---------- 렌더 ---------- */
+function render(){document.getElementById('station').innerHTML=R[S.cur]();renderSky()}
+function go(i){S.cur=i;save();render();document.getElementById('sky').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth',block:'start'})}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),1700)}
+function setPath(path,v){const ks=path.split('.');let o=S;for(let i=0;i<ks.length-1;i++)o=o[ks[i]];o[ks.at(-1)]=v}
+function toggle(arr,v,max){const i=arr.indexOf(v);if(i>=0)arr.splice(i,1);else if(arr.length<max)arr.push(v);else{toast(`${max}개까지 고를 수 있어요`);return false}return true}
+
+document.addEventListener('click',e=>{
+ const el=e.target.closest('[data-go],[data-f],[data-me],[data-ot],[data-k2],[data-pick],[data-act],[data-act4],[data-a5],[data-flip],[data-pick6],[data-verb],[data-copy]');if(!el)return;
+ const d=el.dataset;const before=litCount();
+ if(d.go!=null){go(+d.go);return}
+ if(d.act==='pdf'){makePdf();return}
+ if(d.f){const[i,f]=d.f.split('|');S.s1.m[i].f=S.s1.m[i].f===f?'':f}
+ else if(d.me){toggle(S.s2.me,d.me,6);if(!johari().open.concat(johari().blind,johari().hidden).includes(S.s2.key))S.s2.key=''}
+ else if(d.ot){toggle(S.s2.ot,d.ot,6);if(!johari().open.concat(johari().blind,johari().hidden).includes(S.s2.key))S.s2.key=''}
+ else if(d.k2){S.s2.key=d.k2}
+ else if(d.pick){const t=S.s3;const a=t.pool[t.i],b=t.pool[t.i+1];t.win.push(d.pick);if(t.pool.length===2){t.done=true;t.winner=d.pick;t.runner=d.pick===a?b:a}t.i+=2;if(!t.done&&t.i>=t.pool.length){t.pool=t.win;t.win=[];t.i=0}}
+ else if(d.act==='retour'){S.s3=fresh().s3}
+ else if(d.act==='reset'){document.getElementById('resetConfirm').innerHTML=`<div class="box"><span>모든 입력이 지워집니다. 정말 처음부터 다시 할까요?</span><div class="row"><button class="btn small" data-act="resetyes">네, 지우기</button><button class="btn ghost small" data-act="resetno">아니요</button></div></div>`;return}
+ else if(d.act==='resetyes'){S=fresh();sno.value='';sname.value='';save();render();toast('새 여행을 시작합니다');return}
+ else if(d.act==='resetno'){document.getElementById('resetConfirm').innerHTML='';return}
+ else if(d.act4!=null){const v=((S.s4.r[d.act4]||0)+1)%3;if(v)S.s4.r[d.act4]=v;else delete S.s4.r[d.act4]}
+ else if(d.a5){const[i,j]=d.a5.split('|').map(Number);S.s5.a[i]=j}
+ else if(d.flip!=null){const i=+d.flip;if(!S.s6.flip.includes(i))S.s6.flip.push(i);else{S.s6.flip=S.s6.flip.filter(x=>x!==i);if(S.s6.pick===SHADOW[i][0])S.s6.pick=''}}
+ else if(d.pick6){S.s6.pick=S.s6.pick===d.pick6?'':d.pick6}
+ else if(d.verb){S.s7.verb=S.s7.verb===d.verb?'':d.verb}
+ else if(d.copy){const txt=document.getElementById(d.copy).innerText;const ok=()=>toast('복사했어요');
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(ok,()=>selectText(d.copy))}else selectText(d.copy);return}
+ save();
+ const y=window.scrollY;render();window.scrollTo(0,y);
+ if(litCount()>before)toast(`✦ ${STARS[S.cur].n}이(가) 밝아졌어요`);
+});
+function selectText(id){const r=document.createRange();r.selectNodeContents(document.getElementById(id));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('선택됨 · Ctrl+C로 복사하세요')}
+document.addEventListener('keydown',e=>{const g=e.target.closest&&e.target.closest('.star');if(g&&(e.key==='Enter'||e.key===' ')){e.preventDefault();go(+g.dataset.go)}});
+document.addEventListener('input',e=>{const p=e.target.dataset&&e.target.dataset.in;if(!p)return;const before=litCount();setPath(p,e.target.value);save();renderSky();
+ // 이름 줄 갱신(입력 포커스는 유지)
+ const kl=document.querySelector('.keyline');if(kl&&S.cur<7){const k=kw(S.cur);kl.innerHTML=`<span class="lab">이 별의 이름</span>${k?`<span class="kwchip">${esc(k)}</span>`:'<span class="note">활동을 마치면 별이 켜집니다</span>'}`}
+ if(S.cur===6){const sm=document.querySelector('.summary');if(sm)sm.innerHTML=`나는 <b>${esc(S.s7.obj)} ${esc(S.s7.verb)}</b> 사람이 되고 싶다.`}
+ if(S.cur===7){const h=document.querySelector('.st-head h2');if(h)h.textContent=S.cname?S.cname+' 자리':'나의 별자리';document.getElementById('cardtxt').textContent=cardText();document.getElementById('sgbtxt').textContent=sgbText()}
+ if(litCount()>before)toast(`✦ ${STARS[S.cur].n}이(가) 밝아졌어요`)});
+// 예전 '학번·이름' 한 칸 입력값을 둘로 나눠 옮김
+if(S.sid!=null&&S.sno==null){const m=String(S.sid).trim().match(/^(\d+)\s*(.*)$/);S.sno=m?m[1]:'';S.sname=m?m[2]:String(S.sid).trim();delete S.sid;save()}
+const sno=document.getElementById('sno'),sname=document.getElementById('sname');
+sno.value=S.sno||'';sname.value=S.sname||'';
+sno.addEventListener('input',()=>{sno.value=sno.value.replace(/\D/g,'');S.sno=sno.value;save();refreshFinal()});
+sname.addEventListener('input',()=>{S.sname=sname.value.trim();save();refreshFinal()});
+function refreshFinal(){if(S.cur===7){const c=document.getElementById('cardtxt');if(c)c.textContent=cardText()}}
+function who(){return[S.sno,S.sname].filter(Boolean).join(' ')}
+
+/* ---------- PDF ---------- */
+let DL=null,dlReady=false;
+try{window.claude?.use?.('downloads').then(x=>{DL=x;dlReady=true},()=>{dlReady=true})}catch(e){dlReady=true}
+function skyImage(){
+ const W=1400,H=640,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+ const g=x.createRadialGradient(W*.7,H*.1,20,W*.6,H*.5,W*.8);g.addColorStop(0,'#22306a');g.addColorStop(.5,'#141c3d');g.addColorStop(1,'#0c1229');x.fillStyle=g;x.fillRect(0,0,W,H);
+ let seed=11;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+ for(let i=0;i<260;i++){x.fillStyle=`rgba(220,225,255,${rnd()*.6+.15})`;x.beginPath();x.arc(rnd()*W,rnd()*H,rnd()*1.8+.4,0,7);x.fill()}
+ const sx=W/640,sy=H/300,P=s=>[s.x*sx,s.y*sy];
+ const L=STARS.map((s,i)=>lit(i)?i:-1).filter(i=>i>=0);
+ x.strokeStyle='rgba(242,207,120,.6)';x.lineWidth=2.4;x.beginPath();L.forEach((i,k)=>{const[a,b]=P(STARS[i]);k?x.lineTo(a,b):x.moveTo(a,b)});x.stroke();
+ STARS.forEach((s,i)=>{const[cx,cy]=P(s),on=lit(i),R=on?17:11,r=R*.42;
+  if(on){x.fillStyle='rgba(242,207,120,.22)';x.beginPath();x.arc(cx,cy,40,0,7);x.fill()}
+  x.fillStyle=on?'#f2cf78':'#5a6496';x.beginPath();for(let k=0;k<10;k++){const a=Math.PI/5*k-Math.PI/2,rr=k%2?r:R;x.lineTo(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr)}x.closePath();x.fill();
+  const up=s.y>200;x.textAlign='center';x.fillStyle='#a1a8cc';x.font='500 24px "IBM Plex Sans KR",sans-serif';x.fillText(s.n,cx,cy+(up?-46:62));
+  if(on){x.fillStyle='#f2cf78';x.font='700 30px "Gowun Batang",serif';x.fillText(kw(i),cx,cy+(up?-80:98))}});
+ if(S.cname){x.textAlign='left';x.fillStyle='#ece9f7';x.font='700 34px "Gowun Batang",serif';x.fillText(S.cname+' 자리',36,H-34)}
+ return c.toDataURL('image/png')}
+function detailRows(){const j=johari(),t=topRia(),st=strengths();const P=s=>esc(s||'')||'<span style="color:var(--paper-muted)">기록 없음</span>';
+ const mem=S.s1.m.map((m,i)=>m.t?`${['빛났던 순간','버텨 낸 순간','고마웠던 순간'][i]}: ${esc(m.t)}${m.f?' ('+esc(m.f)+')':''}`:'').filter(Boolean).join('<br>');
+ const acts=ACTS.filter((a,i)=>S.s4.r[i]).map((a,i)=>a[0]+(S.s4.r[ACTS.indexOf(a)]===2?'★':'')).join(', ');
+ return[
+  [mem||P('')],
+  [S.s2.me.length||S.s2.ot.length?`열린 나: ${esc(j.open.join(', ')||'-')}<br>보이지 않는 나: ${esc(j.blind.join(', ')||'-')}<br>숨겨진 나: ${esc(j.hidden.join(', ')||'-')}`:P('')],
+  [S.s3.done?`최후의 가치 ${esc(S.s3.winner)}, 끝까지 고민한 가치 ${esc(S.s3.runner)}${S.s3.why?'<br>이유: '+esc(S.s3.why):''}`:P('')],
+  [t[0]?`${t.slice(0,2).map(k=>RIA[k][0]).join(' + ')} · ${RIA[t[0]][1]} 일에 끌림<br>몰입 활동: ${esc(acts)}`:P('')],
+  [st[0]?`자연스럽게 꺼내 쓰는 힘: ${st.slice(0,2).map(k=>STR[k]).join(' · ')}`:P('')],
+  [S.s6.pick?`${esc(S.s6.pick)} → ${esc(kw(5))}${S.s6.use?'<br>쓰고 싶은 곳: '+esc(S.s6.use):''}`:P('')],
+  [S.s7.verb?`나는 ${esc((S.s7.obj+' '+S.s7.verb).trim())} 사람이 되고 싶다.${S.s7.day?'<br>10년 뒤 어느 하루: '+esc(S.s7.day):''}`:P('')]
+ ]}
+function buildReport(){const r=document.getElementById('rpt');const d=new Date();const ds=`${d.getFullYear()}. ${d.getMonth()+1}. ${d.getDate()}.`;
+ const rows=detailRows();
+ r.innerHTML=`<div class="rb rtop"><h1>나는 누구인가? <span>나의 별자리</span></h1>
+  <div class="meta">학번 <b>${esc(S.sno||'-')}</b> &nbsp; 이름 <b>${esc(S.sname||'-')}</b><br>별자리 이름 <b>${esc(S.cname||'-')}</b> · ${ds}</div></div>
+  <div class="rb"><img src="${skyImage()}" alt=""></div>
+  <div class="rb"><p class="rsum">${document.getElementById('sumtxt').innerHTML}</p></div>
+  <div class="rb"><h3>일곱 별의 기록</h3></div>
+  ${STARS.map((s,i)=>`<div class="rb rrow"><div class="nm">${i+1}. ${s.n}<small>${esc(kw(i)||'-')}</small></div><p>${rows[i][0]}</p></div>`).join('')}
+  ${S.s7.letter?`<div class="rb"><h3>10년 뒤의 나에게</h3><div class="rbox">${esc(S.s7.letter)}</div></div>`:''}
+  <div class="rb"><h3>진로활동 특기사항 기재 예시</h3><div class="rbox">${esc(sgbText())}</div></div>
+  <div class="rb rfoot">성도고등학교 진로 프로그램 「나의 별자리」 활동 결과 · 기재 예시는 교사가 확인 후 다듬어 쓰는 초안입니다.</div>`;
+ return r}
+async function makePdf(){
+ const btn=document.getElementById('pdfbtn'),msg=document.getElementById('pdfmsg');const say=t=>{if(msg)msg.textContent=t};
+ if(!S.sno||!S.sname){say('학번과 이름을 먼저 적어 주세요.');(S.sno?sname:sno).focus();return}
+ if(!window.html2canvas||!window.jspdf){say('PDF 도구를 불러오지 못했어요. 인터넷 연결을 확인한 뒤 새로고침해 주세요.');return}
+ if(dlReady&&!DL){say('이 화면에서는 파일 저장을 쓸 수 없어요. 브라우저에서 이 페이지를 열어 주세요.');return}
+ btn.disabled=true;say('보고서를 만드는 중…');
+ try{
+  await document.fonts.ready;
+  const r=buildReport();await new Promise(res=>{const im=r.querySelector('img');im.complete?res():im.onload=res});
+  const SC=2,cv=await html2canvas(r,{scale:SC,backgroundColor:'#ffffff',windowWidth:794,logging:false});
+  const pageH=Math.floor(794*297/210);
+  // 블록 경계에서만 쪽을 나눔
+  const top0=r.getBoundingClientRect().top;const blocks=[...r.querySelectorAll('.rb')].map(b=>{const q=b.getBoundingClientRect();return[q.top-top0,q.bottom-top0]});
+  const cuts=[0];let start=0;blocks.forEach(([t,b])=>{if(b-start>pageH&&t>start){cuts.push(t);start=t}});cuts.push(r.scrollHeight);
+  const {jsPDF}=window.jspdf;const pdf=new jsPDF({unit:'mm',format:'a4',orientation:'p'});
+  let first=true;
+  for(let k=0;k<cuts.length-1;k++){let y0=cuts[k],y1=cuts[k+1];
+   while(y0<y1){const h=Math.min(pageH,y1-y0);const pc=document.createElement('canvas');pc.width=cv.width;pc.height=Math.round(h*SC);
+    const px=pc.getContext('2d');px.fillStyle='#fff';px.fillRect(0,0,pc.width,pc.height);px.drawImage(cv,0,Math.round(y0*SC),cv.width,pc.height,0,0,cv.width,pc.height);
+    if(!first)pdf.addPage();first=false;
+    pdf.addImage(pc.toDataURL('image/jpeg',.92),'JPEG',0,0,210,h*210/794);y0+=h}}
+  const blob=pdf.output('blob');r.innerHTML='';
+  const name=`${S.sno}_${S.sname}_나의별자리.pdf`.replace(/[\\/:*?"<>|]/g,'');
+  if(!DL){say('파일 저장 기능이 아직 준비되지 않았어요. 잠시 후 다시 눌러 주세요.');return}
+  await DL.save({filename:name,data:blob});say('저장했어요: '+name);toast('PDF를 저장했어요');
+ }catch(e){const c=e&&e.code;
+  say(c==='declined'?'저장을 취소했어요.':c==='rate_limited'?'저장 창이 이미 열려 있어요. 잠시 후 다시 눌러 주세요.':c==='host_unavailable'?'이 앱에서는 파일을 저장할 수 없어요. 컴퓨터 브라우저에서 열어 주세요.':'PDF를 만들지 못했어요. 다시 눌러 주세요.')}
+ finally{btn.disabled=false;document.getElementById('rpt').innerHTML=''}}
+addEventListener('resize',drawBg);
+drawBg();render();
+</script>
+
+</body></html>
